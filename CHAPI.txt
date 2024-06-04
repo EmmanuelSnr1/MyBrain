@@ -1,0 +1,510 @@
+Yes, I'm familiar with how the Companies House API works. The Companies House API provides access to various data points about UK companies, including their basic details, officers, filing history, and more. However, obtaining specific employee headcount data directly from the Companies House API might be challenging, as this information is not typically included in the standard responses.
+
+How the Companies House API Works
+Authentication: You need an API key to authenticate your requests. This key must be included in the header of your HTTP requests.
+Endpoints: The API offers various endpoints to access different types of data such as company profiles, filing history, officer information, etc.
+Typical API Response
+For example, a typical response for a company profile request might look like this:
+
+Request: GET /company/{company_number}
+
+http
+Copy code
+GET https://api.company-information.service.gov.uk/company/00000006
+Authorization: Basic <your_api_key>
+Response:
+
+json
+Copy code
+{
+  "company_name": "COMPANY NAME",
+  "company_number": "00000006",
+  "company_status": "active",
+  "company_type": "ltd",
+  "sic_codes": ["62020"],
+  "registered_office_address": {
+    "address_line_1": "123 Example Street",
+    "address_line_2": "Example",
+    "locality": "Example City",
+    "postal_code": "EX1 2MP",
+    "country": "UK"
+  },
+  "date_of_creation": "1999-01-01",
+  "jurisdiction": "england-wales",
+  "accounts": {
+    "accounting_reference_date": {
+      "day": "31",
+      "month": "12"
+    },
+    "next_due": "2022-12-31",
+    "last_accounts": {
+      "made_up_to": "2021-12-31",
+      "type": "full",
+      "links": {
+        "self": "/company/00000006/filing-history/MDE3NDMxNTQ2OWFkaXF6a2N4/document?format=pdf&download=0"
+      }
+    }
+  },
+  "officers": {
+    "links": {
+      "self": "/company/00000006/officers"
+    }
+  }
+}
+Employee Headcount Data
+Employee headcount data is not directly available through the Companies House API. Instead, such information might be found in the annual reports or accounts filed by companies. These documents can be accessed via the filing history endpoint, and you would need to parse these documents (typically in PDF format) to extract relevant information.
+
+Workflow for Extracting Employee Headcount
+Fetch Company Filing History:
+
+Use the /company/{company_number}/filing-history endpoint to get the list of filed documents.
+Identify Relevant Documents:
+
+Look for annual reports or full accounts documents which might contain employee information.
+Download and Parse Documents:
+
+Download the PDF documents and use a PDF parsing library to extract text.
+Search for employee headcount information within the extracted text.
+Example Code to Fetch Filing History
+java
+Copy code
+public class CompanyFilingService {
+
+    private static final String API_URL = "https://api.company-information.service.gov.uk/company/";
+
+    public List<FilingHistoryItem> getFilingHistory(String companyNumber, String apiKey) throws IOException {
+        String url = API_URL + companyNumber + "/filing-history";
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jsonResponse = mapper.readTree(response.toString());
+        return mapper.convertValue(jsonResponse.get("items"), new TypeReference<List<FilingHistoryItem>>() {});
+    }
+}
+Example Use Case for Employee Headcount Extraction
+Query Filing History: Fetch the filing history for the company.
+Filter Relevant Documents: Identify documents that are likely to contain employee headcount data (e.g., full accounts).
+Download Documents: Retrieve the document URLs from the filing history and download them.
+Parse Documents: Use a PDF parser to extract text and search for keywords related to employee numbers.
+Considerations
+Data Quality: Ensure the quality of the extracted data by handling OCR errors or discrepancies in document formats.
+Rate Limits: Respect the rate limits set by the Companies House API to avoid being throttled.
+Data Storage: Store the extracted employee headcount data in your database for future analysis.
+Conclusion
+While the Companies House API provides valuable data, obtaining specific employee headcount information requires additional steps, including fetching, downloading, and parsing documents. Implementing these steps programmatically ensures you can build a robust system to track and analyze company employee histories over time. If you have further questions or need assistance with specific implementation details, feel free to ask!
+
+So the Filing History of companies dont come in a json format? 
+ChatGPT
+The filing history of companies retrieved from the Companies House API does come in JSON format, but the actual documents, such as annual reports or accounts, which might contain detailed employee headcount information, are typically in PDF format. Here’s a more detailed explanation:
+
+Fetching Filing History
+When you request the filing history of a company, the response is in JSON format. The JSON includes metadata about each filing, such as the type of document, date filed, and a link to the document.
+
+Request: GET /company/{company_number}/filing-history
+
+http
+Copy code
+GET https://api.company-information.service.gov.uk/company/00000006/filing-history
+Authorization: Basic <your_api_key>
+Response:
+
+json
+Copy code
+{
+  "items": [
+    {
+      "type": "AA",
+      "description": "accounts",
+      "date": "2023-03-31",
+      "links": {
+        "self": "/company/00000006/filing-history/MzI3NjU2OTQzNWFkaXF6a2N4",
+        "document_metadata": "https://document-api.company-information.service.gov.uk/document/MzI3NjU2OTQzNWFkaXF6a2N4"
+      },
+      "description_values": {
+        "made_up_to": "2022-12-31"
+      }
+    },
+    ...
+  ]
+}
+Downloading and Parsing Documents
+To obtain detailed information like employee headcount, you need to download and parse the actual documents referenced in the filing history. Here’s how to handle this:
+
+Identify Relevant Documents: Look for documents like full accounts or annual returns.
+Download Documents: Use the document metadata link to download the document in PDF format.
+Parse Documents: Use a PDF parsing library to extract text from the PDF and search for employee-related information.
+Example Code to Fetch and Parse Filing History
+Fetch Filing History (Java)
+java
+Copy code
+public class FilingHistoryService {
+
+    private static final String API_URL = "https://api.company-information.service.gov.uk/company/";
+
+    public List<FilingHistoryItem> getFilingHistory(String companyNumber, String apiKey) throws IOException {
+        String url = API_URL + companyNumber + "/filing-history";
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jsonResponse = mapper.readTree(response.toString());
+        return mapper.convertValue(jsonResponse.get("items"), new TypeReference<List<FilingHistoryItem>>() {});
+    }
+}
+Download and Parse PDF Document (Java)
+java
+Copy code
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+
+public class PDFParserService {
+
+    public String downloadAndParsePDF(String documentUrl, String apiKey) throws IOException {
+        URL url = new URL(documentUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        InputStream inputStream = connection.getInputStream();
+        PDDocument document = PDDocument.load(inputStream);
+
+        PDFTextStripper pdfStripper = new PDFTextStripper();
+        String text = pdfStripper.getText(document);
+
+        document.close();
+        return text;
+    }
+}
+Steps to Extract Employee Information
+Fetch Filing History: Use the FilingHistoryService to get the list of filed documents.
+Filter for Relevant Documents: Identify documents that likely contain employee information.
+Download and Parse Documents: Use the PDFParserService to download and parse the PDF documents.
+Extract Employee Data: Search the extracted text for employee headcount information.
+Example Flow
+Fetch Filing History:
+
+java
+Copy code
+FilingHistoryService filingHistoryService = new FilingHistoryService();
+List<FilingHistoryItem> filings = filingHistoryService.getFilingHistory("00000006", "<your_api_key>");
+Filter and Download Documents:
+
+java
+Copy code
+PDFParserService pdfParserService = new PDFParserService();
+for (FilingHistoryItem filing : filings) {
+    if ("AA".equals(filing.getType())) { // Assuming AA (Accounts) contain employee info
+        String documentText = pdfParserService.downloadAndParsePDF(filing.getLinks().getDocumentMetadata(), "<your_api_key>");
+        // Process documentText to find employee information
+    }
+}
+Conclusion
+While the Companies House API provides the filing history in JSON format, the detailed employee headcount information typically resides in the actual documents, which are often in PDF format. By fetching and parsing these documents, you can extract the necessary information. This approach involves identifying relevant documents, downloading them, and using a PDF parser to extract and analyze the content. If you have any more questions or need further assistance, feel free to ask!
+
+If im understanding correctly, To get the head count for each company for the previous 4 years, i would have to download each of their filed documents for the previous 4 years and parse them to get that information? 
+ChatGPT
+Yes, you are understanding correctly. To obtain the employee headcount for each company for the previous 4 years, you would need to follow these steps:
+
+Fetch the Filing History: Retrieve the filing history for each company using the Companies House API.
+Identify Relevant Documents: Identify the specific documents that contain employee headcount information, such as annual reports or full accounts.
+Download the Documents: Use the links provided in the filing history JSON to download the documents. These documents are typically in PDF format.
+Parse the Documents: Use a PDF parsing library to extract text from the downloaded PDFs.
+Extract Employee Headcount Information: Search the extracted text for employee headcount data.
+Detailed Steps
+1. Fetch the Filing History
+You need to fetch the filing history for each company using the Companies House API endpoint /company/{company_number}/filing-history.
+
+2. Identify Relevant Documents
+Look for documents such as "Annual Accounts" or "Full Accounts" which are likely to contain employee headcount information. These are typically marked with a specific type code, such as "AA".
+
+3. Download the Documents
+Use the document metadata link from the filing history to download the actual PDF documents.
+
+4. Parse the Documents
+Use a PDF parsing library (e.g., Apache PDFBox) to extract the text content from the PDF files.
+
+5. Extract Employee Headcount Information
+Search the extracted text for keywords related to employee count (e.g., "average number of employees", "employees").
+
+Example Implementation
+Fetch Filing History (Java)
+java
+Copy code
+public class FilingHistoryService {
+
+    private static final String API_URL = "https://api.company-information.service.gov.uk/company/";
+
+    public List<FilingHistoryItem> getFilingHistory(String companyNumber, String apiKey) throws IOException {
+        String url = API_URL + companyNumber + "/filing-history";
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jsonResponse = mapper.readTree(response.toString());
+        return mapper.convertValue(jsonResponse.get("items"), new TypeReference<List<FilingHistoryItem>>() {});
+    }
+}
+Download and Parse PDF Document (Java)
+java
+Copy code
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+
+public class PDFParserService {
+
+    public String downloadAndParsePDF(String documentUrl, String apiKey) throws IOException {
+        URL url = new URL(documentUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        InputStream inputStream = connection.getInputStream();
+        PDDocument document = PDDocument.load(inputStream);
+
+        PDFTextStripper pdfStripper = new PDFTextStripper();
+        String text = pdfStripper.getText(document);
+
+        document.close();
+        return text;
+    }
+}
+Extract Employee Information
+Once you have the text from the document, you can use regular expressions or simple string search to extract the employee headcount information.
+
+java
+Copy code
+public int extractEmployeeCount(String documentText) {
+    Pattern pattern = Pattern.compile("average number of employees\\s*:\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    Matcher matcher = pattern.matcher(documentText);
+    if (matcher.find()) {
+        return Integer.parseInt(matcher.group(1));
+    }
+    return -1; // Return -1 or another appropriate value if the information is not found
+}
+Putting It All Together
+Here is a simplified workflow for extracting employee count for the past 4 years for each company:
+
+Fetch Filing History:
+
+java
+Copy code
+FilingHistoryService filingHistoryService = new FilingHistoryService();
+List<FilingHistoryItem> filings = filingHistoryService.getFilingHistory("00000006", "<your_api_key>");
+Filter and Download Documents:
+
+java
+Copy code
+PDFParserService pdfParserService = new PDFParserService();
+for (FilingHistoryItem filing : filings) {
+    if ("AA".equals(filing.getType()) && isWithinLastFourYears(filing.getDate())) { // Check if filing is within last 4 years
+        String documentText = pdfParserService.downloadAndParsePDF(filing.getLinks().getDocumentMetadata(), "<your_api_key>");
+        int employeeCount = extractEmployeeCount(documentText);
+        // Store or process the employee count
+    }
+}
+Check Date Function:
+
+java
+Copy code
+private boolean isWithinLastFourYears(String date) {
+    LocalDate filingDate = LocalDate.parse(date);
+    LocalDate fourYearsAgo = LocalDate.now().minusYears(4);
+    return !filingDate.isBefore(fourYearsAgo);
+}
+Conclusion
+To get the employee headcount for each company for the previous 4 years, you need to download and parse relevant documents from the Companies House API filing history. This process involves identifying the correct documents, downloading them, parsing the content, and extracting the required information. While this approach requires additional steps, it ensures you can obtain the detailed employee headcount data you need. If you have further questions or need more assistance, feel free to ask!
+
+So does the link included in the json contain the annual report for the most recent accounting year or all filing documents for a given company for most years ?
+ChatGPT
+The link included in the JSON response from the Companies House API typically points to a specific filing document. The filing history response contains a list of all filings for a given company, each with its own metadata, including links to the individual documents.
+
+Detailed Example
+When you request the filing history for a company, you receive a list of filings, each representing a single document filed with Companies House. Each entry in this list includes metadata such as the type of document, the date it was filed, and a link to the document metadata.
+
+Example Request: GET /company/{company_number}/filing-history
+
+http
+Copy code
+GET https://api.company-information.service.gov.uk/company/00000006/filing-history
+Authorization: Basic <your_api_key>
+Example Response:
+
+json
+Copy code
+{
+  "items": [
+    {
+      "type": "AA",
+      "description": "accounts",
+      "date": "2023-03-31",
+      "links": {
+        "self": "/company/00000006/filing-history/MzI3NjU2OTQzNWFkaXF6a2N4",
+        "document_metadata": "https://document-api.company-information.service.gov.uk/document/MzI3NjU2OTQzNWFkaXF6a2N4"
+      },
+      "description_values": {
+        "made_up_to": "2022-12-31"
+      }
+    },
+    {
+      "type": "AR01",
+      "description": "annual return",
+      "date": "2022-03-31",
+      "links": {
+        "self": "/company/00000006/filing-history/MzI2NjU2OTQzNWFkaXF6a2N4",
+        "document_metadata": "https://document-api.company-information.service.gov.uk/document/MzI2NjU2OTQzNWFkaXF6a2N4"
+      },
+      "description_values": {
+        "made_up_to": "2021-12-31"
+      }
+    },
+    ...
+  ]
+}
+Understanding the JSON Structure
+items: A list of filings.
+type: The type of document (e.g., "AA" for accounts, "AR01" for annual return).
+description: A textual description of the document.
+date: The date the document was filed.
+links: Contains links related to the document.
+self: Link to the filing history item.
+document_metadata: Link to the document's metadata.
+Document Metadata and Download
+To download the actual document, you need to use the document_metadata link to get the download link.
+
+Fetch Document Metadata
+Request:
+
+http
+Copy code
+GET https://document-api.company-information.service.gov.uk/document/MzI3NjU2OTQzNWFkaXF6a2N4
+Authorization: Basic <your_api_key>
+Response:
+
+json
+Copy code
+{
+  "etag": "abcdef1234567890",
+  "links": {
+    "self": "/document/MzI3NjU2OTQzNWFkaXF6a2N4",
+    "document": "https://document-api.company-information.service.gov.uk/document/MzI3NjU2OTQzNWFkaXF6a2N4/content"
+  }
+}
+The document link in the response is the URL to download the actual document.
+
+Steps to Extract Employee Headcount Information
+Fetch Filing History:
+
+Retrieve the list of filings for the company using the filing history endpoint.
+Identify Relevant Filings:
+
+Filter the filings to find those that are annual accounts or other documents likely to contain employee headcount information.
+Download Documents:
+
+Use the document metadata link to get the URL for downloading the actual PDF document.
+Parse the PDF Document:
+
+Download the PDF and use a PDF parsing library to extract text from the document.
+Search the text for employee headcount information.
+Example Code to Fetch and Download a Document
+Fetch Filing History (Java)
+java
+Copy code
+public class FilingHistoryService {
+
+    private static final String API_URL = "https://api.company-information.service.gov.uk/company/";
+
+    public List<FilingHistoryItem> getFilingHistory(String companyNumber, String apiKey) throws IOException {
+        String url = API_URL + companyNumber + "/filing-history";
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jsonResponse = mapper.readTree(response.toString());
+        return mapper.convertValue(jsonResponse.get("items"), new TypeReference<List<FilingHistoryItem>>() {});
+    }
+}
+Download and Parse PDF Document (Java)
+java
+Copy code
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+
+public class PDFParserService {
+
+    public String downloadAndParsePDF(String documentUrl, String apiKey) throws IOException {
+        URL url = new URL(documentUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
+
+        InputStream inputStream = connection.getInputStream();
+        PDDocument document = PDDocument.load(inputStream);
+
+        PDFTextStripper pdfStripper = new PDFTextStripper();
+        String text = pdfStripper.getText(document);
+
+        document.close();
+        return text;
+    }
+}
+Extract Employee Information
+Once you have the text from the document, you can use regular expressions or simple string search to extract the employee headcount information.
+
+java
+Copy code
+public int extractEmployeeCount(String documentText) {
+    Pattern pattern = Pattern.compile("average number of employees\\s*:\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    Matcher matcher = pattern.matcher(documentText);
+    if (matcher.find()) {
+        return Integer.parseInt(matcher.group(1));
+    }
+    return -1; // Return -1 or another appropriate value if the information is not found
+}
+Summary
+To get the employee headcount information for each company for the previous 4 years:
+
+Use the Companies House API to fetch the filing history.
+Identify the relevant documents (e.g., annual accounts).
+Download the documents using the provided links in the JSON response.
+Parse the downloaded PDF documents to extract employee headcount information.
